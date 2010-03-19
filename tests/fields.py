@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import unittest
 import datetime
 from decimal import Decimal
@@ -234,6 +235,144 @@ class FieldTest(unittest.TestCase):
         post.info = {'title': 'test'}
         post.validate()
 
+    def test_set_validation(self):
+        """Ensure that a set field only accepts sets with valid elements.
+        """
+        class Comment(EmbeddedDocument):
+            content = StringField()
+
+        class BlogPost(Document):
+            content = StringField()
+            comments = SetField(EmbeddedDocumentField(Comment))
+            tags = SetField(StringField())
+
+        post = BlogPost(content='Went for a walk today...')
+        post.validate()
+
+        post.tags = 'fun'
+        self.assertRaises(ValidationError, post.validate)
+        post.tags = [1, 2]
+        self.assertRaises(ValidationError, post.validate)
+
+        post.tags = set(['fun', 'leisure'])
+        post.validate()
+
+        comments = set([Comment(content='Good for you'), Comment(content='Yay.')])
+        post.comments = comments
+        post.validate()
+
+        post.comments = set(['a'])
+        self.assertRaises(ValidationError, post.validate)
+        post.comments = 'yay'
+        self.assertRaises(ValidationError, post.validate)
+
+    def test_map_validation(self):
+        """Ensure that map types work as expected.
+        """
+        class BlogPost(Document):
+            info = MapField(StringField(), StringField())
+
+        post = BlogPost()
+        post.info = 'my post'
+        self.assertRaises(ValidationError, post.validate)
+
+        post.info = ['test', 'test']
+        self.assertRaises(ValidationError, post.validate)
+
+        post.info = {'$title': 'test'}
+        post.validate()
+
+        post.info = {'the.title': 'test'}
+        post.validate()
+
+        post.info = {'title': 'test'}
+        post.validate()
+
+    def test_enumeration_validation(self):
+        """Ensure that enumeration types work as expected.
+        """
+        class BlogPost(Document):
+            mood = EnumerationField(StringField(), restrict=['bored', 'aroused'])
+
+        post = BlogPost()
+        post.mood = 'happy'
+        self.assertRaises(ValidationError, post.validate)
+
+        post.mood = 5
+        self.assertRaises(ValidationError, post.validate)
+
+        post.mood = 'bored'
+        post.validate()
+        self.assertEqual(post.mood, 'bored')
+
+        post.mood = 'aroused'
+        post.validate()
+
+    def test_email_validation(self):
+        """Ensure that EmailFields validate emails properly.
+        """
+        class User(Document):
+            email = EmailField()
+
+        user = User()
+        user.email = 'example.com'
+        self.assertRaises(ValidationError, user.validate)
+        
+        user.email = 'foo.example.com'
+        self.assertRaises(ValidationError, user.validate)
+        
+        user.email = 'foo@example'
+        self.assertRaises(ValidationError, user.validate)
+        
+        user.email = 'foo.example.c'
+        self.assertRaises(ValidationError, user.validate)
+
+        user.email = 'foo@example.com'
+        user.validate()
+
+        user.email = 'foo.bar@example.com'
+        user.validate()
+
+    def test_language_validation(self):
+        """Ensure that LanguageFields validate language codes properly.
+        """
+        class Post(Document):
+            lang = LanguageField()
+
+        post = Post()
+        post.lang = '??'
+        self.assertRaises(ValidationError, post.validate)
+        
+        post.lang = 'en'
+        post.validate()
+        
+        post.lang = 'eng'
+        post.validate()
+        
+        post.lang = 'en-us'
+        post.validate()
+        
+        post.lang = 'en--us'
+        self.assertRaises(ValidationError, post.validate)
+        
+        post.lang = 'en-US'
+        post.validate()
+        
+        post.lang = 'en-US-x-fandom'
+        post.validate()
+        
+        post.lang = 'es-419'
+        post.validate()
+        
+        post.lang = 'sr-Latn-CS'
+        post.validate()
+        
+        post.lang = 'sl-IT-nedis'
+        post.validate()
+        
+        post.lang = 'en-a-bbb-x-a-ccc'
+        post.validate()
+
     def test_embedded_document_validation(self):
         """Ensure that invalid embedded documents cannot be assigned to
         embedded document fields.
@@ -346,6 +485,36 @@ class FieldTest(unittest.TestCase):
 
         self.assertEqual(group_obj.members[0].name, user1.name)
         self.assertEqual(group_obj.members[1].name, user2.name)
+
+        User.drop_collection()
+        Group.drop_collection()
+    
+    def test_set_item_dereference(self):
+        """Ensure that DBRef items in SetFields are dereferenced.
+        """
+        class User(Document):
+            name = StringField()
+
+        class Group(Document):
+            members = SetField(ReferenceField(User))
+
+        User.drop_collection()
+        Group.drop_collection()
+
+        user1 = User(name='user1')
+        user1.save()
+        user2 = User(name='user2')
+        user2.save()
+        
+        group = Group(members=set([user1, user2]))
+        group.save()
+
+        group_obj = Group.objects.first()
+
+        for user in group_obj.members:
+            self.assertTrue(user.name in (user1.name, user2.name))
+        
+        self.assertEqual(len(group_obj.members), 2)
 
         User.drop_collection()
         Group.drop_collection()
