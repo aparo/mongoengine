@@ -3,6 +3,7 @@ from connection import _get_db
 import pymongo
 import re
 import copy
+from django.core.exceptions import MultipleObjectsReturned, ObjectDoesNotExist
 
 
 __all__ = ['queryset_manager', 'Q', 'InvalidQueryError',
@@ -10,15 +11,6 @@ __all__ = ['queryset_manager', 'Q', 'InvalidQueryError',
 
 # The maximum number of items to display in a QuerySet.__repr__
 REPR_OUTPUT_SIZE = 20
-
-
-class DoesNotExist(Exception):
-    pass
-
-
-class MultipleObjectsReturned(Exception):
-    pass
-
 
 class InvalidQueryError(Exception):
     pass
@@ -346,7 +338,7 @@ class QuerySet(object):
                     elif op == "near":
                         value = {'$near': value}
                     else:
-                        raise NotImplmenetedError, \
+                        raise NotImplementedError, \
                               "Geo method has been implemented"
                 elif op not in match_operators:
                     value = {'$' + op: value}
@@ -361,8 +353,8 @@ class QuerySet(object):
 
     def get(self, *q_objs, **query):
         """Retrieve the the matching object raising
-        :class:`~mongoengine.queryset.MultipleObjectsReturned` or
-        :class:`~mongoengine.queryset.DoesNotExist` exceptions if multiple or
+        :class:`~django.core.exceptions.MultipleObjectsReturned` or
+        :class:`~django.core.exceptions.ObjectDoesNotExist` exceptions if multiple or
         no results are found.
 
         .. versionadded:: 0.3
@@ -375,7 +367,7 @@ class QuerySet(object):
             message = u'%d items returned, instead of 1' % count
             raise MultipleObjectsReturned(message)
         else:
-            raise DoesNotExist('Document not found')
+            raise ObjectDoesNotExist('Document not found')
 
     def get_or_create(self, *q_objs, **query):
         """Retreive unique object or create, if it doesn't exist. Raises

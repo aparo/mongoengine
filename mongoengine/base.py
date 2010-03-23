@@ -1,17 +1,13 @@
 from queryset import QuerySet, QuerySetManager
 
 import pymongo
+from django.core.exceptions import ValidationError
 
 
 _document_registry = {}
 
 def get_document(name):
     return _document_registry[name]
-
-
-class ValidationError(Exception):
-    pass
-
 
 class BaseField(object):
     """A base class for fields in a MongoDB document. Instances of this class
