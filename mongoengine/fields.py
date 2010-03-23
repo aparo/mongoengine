@@ -14,13 +14,9 @@ __all__ = ['StringField', 'IntField', 'FloatField', 'BooleanField',
            'DateTimeField', 'EmbeddedDocumentField', 'ListField', 'DictField',
            'ObjectIdField', 'ReferenceField', 'ValidationError',
            'DecimalField', 'URLField', 'GenericReferenceField',
-<<<<<<< HEAD
            'SetField', 'MapField', 'EnumerationField',
            'EmailField', 'LanguageField',
-           'BinaryField']
-=======
            'BinaryField', 'SortedListField']
->>>>>>> 366cda55d4a0eefbafc7e0002b571ed375669b8d
 
 RECURSIVE_REFERENCE_CONSTANT = 'self'
 
