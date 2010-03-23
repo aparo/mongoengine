@@ -135,6 +135,9 @@ class DocumentMetaclass(type):
                     simple_class = False
 
         meta = attrs.get('_meta', attrs.get('meta', {}))
+        
+        if 'object_name' not in meta:
+            meta['object_name'] = name
 
         if 'allow_inheritance' not in meta:
             meta['allow_inheritance'] = True
@@ -214,7 +217,7 @@ class TopLevelDocumentMetaclass(DocumentMetaclass):
         # DocumentMetaclass before instantiating CollectionManager object
         new_class = super_new(cls, name, bases, attrs)
         new_class.objects = QuerySetManager()
-
+        new_class._default_manager = QuerySetManager()# Trick to use default django get_or_*
         user_indexes = [QuerySet._build_index_spec(new_class, spec)
                         for spec in meta['indexes']] + base_indexes
         new_class._meta['indexes'] = user_indexes

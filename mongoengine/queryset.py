@@ -124,6 +124,19 @@ class Q(object):
         }
         return value, operation_js
 
+class InternalMetadata:
+    def __init__(self, meta):
+        self.object_name  = meta["object_name"]
+
+class InternalModel:
+    """
+    An internal queryset model to be embedded in a query set for django compatibility.
+    """
+    def __init__(self, document):
+        self.document = document
+        self._meta = InternalMetadata(document._meta)
+        self.DoesNotExist = ObjectDoesNotExist
+
 class QuerySet(object):
     """A set of results returned from a query. Wraps a MongoDB cursor,
     providing :class:`~mongoengine.Document` objects as the results.
@@ -145,6 +158,9 @@ class QuerySet(object):
         self._cursor_obj = None
         self._limit = None
         self._skip = None
+
+        #required for compatibility with django
+        self.model = InternalModel(document)
 
     def ensure_index(self, key_or_list):
         """Ensure that the given indexes are in place.
@@ -216,7 +232,7 @@ class QuerySet(object):
     def all(self):
         """An alias of :meth:`~mongoengine.queryset.QuerySet.__call__`
         """
-        return self.__call__([], {})
+        return self.__call__()
 
     @property
     def _collection(self):
