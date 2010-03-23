@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 from base import BaseField, ObjectIdField, ValidationError, get_document
 from document import Document, EmbeddedDocument
 from connection import _get_db
@@ -12,6 +13,8 @@ __all__ = ['StringField', 'IntField', 'FloatField', 'BooleanField',
            'DateTimeField', 'EmbeddedDocumentField', 'ListField', 'DictField',
            'ObjectIdField', 'ReferenceField', 'ValidationError',
            'DecimalField', 'URLField', 'GenericReferenceField',
+           'SetField', 'MapField', 'EnumerationField',
+           'EmailField', 'LanguageField',
            'BinaryField']
 
 RECURSIVE_REFERENCE_CONSTANT = 'self'
@@ -328,6 +331,157 @@ class DictField(BaseField):
 
     def lookup_member(self, member_name):
         return BaseField(db_field=member_name)
+
+
+class SetField(BaseField):
+
+    # Lists cannot be indexed with _types - MongoDB doesn't support this
+    _index_with_types = False
+    
+    def __init__(self, field, **kwargs):
+        if not isinstance(field, BaseField):
+            raise ValidationError('Argument to SetField must be a valid field')
+        self.field = field
+        super(SetField, self).__init__(**kwargs)
+
+    def __get__(self, instance, owner):
+        """Descriptor to automatically dereference references.
+        """
+        if instance is None:
+            # Document class being used rather than a document object
+            return self
+
+        if isinstance(self.field, ReferenceField):
+            referenced_type = self.field.document_type
+            # Get value from document instance if available 
+            value_list = instance._data.get(self.name)
+            if value_list:
+                deref_list = set()
+                for value in value_list:
+                    # Dereference DBRefs
+                    if isinstance(value, (pymongo.dbref.DBRef)):
+                        value = _get_db().dereference(value)
+                        deref_list.add(referenced_type._from_son(value))
+                    else:
+                        deref_list.add(value)
+                instance._data[self.name] = deref_list
+
+        if isinstance(self.field, GenericReferenceField):
+            value_list = instance._data.get(self.name)
+            if value_list:
+                deref_list = set()
+                for value in value_list:
+                    # Dereference DBRefs
+                    if isinstance(value, (dict, pymongo.son.SON)):
+                        deref_list.add(self.field.dereference(value))
+                    else:
+                        deref_list.add(value)
+                instance._data[self.name] = deref_list
+
+        return super(SetField, self).__get__(instance, owner)
+    
+    def validate(self, value):
+        if not isinstance(value, set):
+            raise ValidationError('Only sets may be used in a set field')
+        
+        try:
+            [self.field.validate(item) for item in value]
+        except Exception, err:
+            raise ValidationError('All items in a set field must be of the '
+                                  'specified type')
+    
+    def to_python(self, value):
+        return set([self.field.to_python(item) for item in value])
+    
+    def to_mongo(self, value):
+        return [self.field.to_mongo(item) for item in value]
+
+
+class MapField(BaseField):
+    def __init__(self, key_field, value_field, **kwargs):
+        if not isinstance(key_field, BaseField):
+            raise ValidationError('Argument to MapField must be a valid field')
+        
+        if not isinstance(value_field, BaseField):
+            raise ValidationError('Argument to MapField must be a valid field')
+        
+        self.key_field = key_field
+        self.value_field = value_field
+        super(MapField, self).__init__(**kwargs)
+    
+    def validate(self, value):
+        if not isinstance(value, dict):
+            raise ValidationError('Only dicts may be used in a map field')
+        
+        try:
+            [self.key_field.validate(key) for key in value.keys()]
+        except Exception, err:
+            raise ValidationError('All keys in a map field must be of the '
+                                  'specified type')
+        
+        try:
+            [self.value_field.validate(key) for value in value.values()]
+        except Exception, err:
+            raise ValidationError('All values in a map field must be of the '
+                                  'specified type')
+
+
+class EnumerationField(BaseField):
+    def __init__(self, field, restrict=None, **kwargs):
+        if not isinstance(field, BaseField):
+            raise ValidationError('Argument to EnumerationField must be '
+                                  'a valid field')
+        
+        if restrict:
+            if not isinstance(restrict, (tuple, list, set)):
+                raise ValidationError('Restriction must be a tuple, list or set')
+            for item in restrict:
+                field.validate(item)
+        
+        self.field = field
+        self.restrict = restrict
+        super(EnumerationField, self).__init__(**kwargs)
+    
+    def validate(self, value):
+        if self.restrict and not value in self.restrict:
+            raise ValidationError('Value violates restriction')
+        
+        self.field.validate(value)
+
+
+class EmailField(StringField):
+    def validate(self, value):
+        if not '@' in value:
+            raise ValidationError('E-mail address does not contain '
+                                  'an "at" sign')
+        
+        domain = value.rsplit('@', 1)[1]
+        
+        if not '.' in domain:
+            raise ValidationError('E-mail address does not contain '
+                                  'a fully qualified domain name')
+        
+        if len(domain.rsplit('.', 1)[1]) < 2:
+            raise ValidationError('E-mail address does not appear '
+                                  'to contain a valid TLD')
+
+
+class LanguageField(StringField):
+    LANGUAGE_REGEX = re.compile(
+        r'^'
+        r'[a-z]{2,3}' # language subtag
+        r'(?:-[a-z]{3}){,3}' # extended language subtags
+        r'(?:-[a-z]{4})?' # script subtag
+        r'(?:-(?:[a-z]{2}|[0-9]{3}))?' # region subtag
+        r'(?:-(?:[a-z]{5,8}|[0-9][a-z0-9]{3}))*' # variant subtags
+        r'(?:-[0-9a-wyz]-[0-9a-z]{2,8})*' # extension subtags
+        r'(?:-x(-[0-9a-z]{1,8})+)?' # private use subtag
+        r'$', flags=re.IGNORECASE
+    )
+    
+    def validate(self, value):
+        if not self.LANGUAGE_REGEX.match(value):
+            raise ValidationError('The value must comply with IETF BCP 47')
 
 
 class ReferenceField(BaseField):
