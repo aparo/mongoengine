@@ -274,9 +274,14 @@ class TopLevelDocumentMetaclass(DocumentMetaclass):
 
 class BaseDocument(object):
 
-    def __init__(self, **values):
+    def __init__(self, dynamic_fields_list=None, **values):
         self._data = {}
+        self._dynamic_fields = {}
         # Assign initial values to instance
+        if dynamic_fields_list is not None:
+            for field_name in dynamic_fields_list:
+                self._fields[field_name] = BaseField(name=field_name)
+                self._data[field_name] = values[field_name]
         for attr_name, attr_value in self._fields.items():
             if attr_name in values:
                 setattr(self, attr_name, values.pop(attr_name))
@@ -284,7 +289,7 @@ class BaseDocument(object):
                 # Use default value if present
                 value = getattr(self, attr_name, None)
                 setattr(self, attr_name, value)
-
+                
     def validate(self):
         """Ensure that all fields' values are valid and that required fields
         are present.
@@ -403,12 +408,18 @@ class BaseDocument(object):
             cls = subclasses[class_name]
 
         present_fields = data.keys()
-
         for field_name, field in cls._fields.items():
             if field.db_field in data:
                 data[field_name] = field.to_python(data[field.db_field])
 
-        obj = cls(**data)
+        if '_dynamic_fields_list' in data:
+            dynamic_fields_list = data['_dynamic_fields_list']
+            for field_name in dynamic_fields_list:
+                data[field_name] = field.to_python(data[field_name])
+        else:
+            dynamic_fields_list = None
+
+        obj = cls(dynamic_fields_list, **data)
         obj._present_fields = present_fields
         return obj
     
