@@ -221,6 +221,11 @@ class QuerySet(object):
         """
         return self.__call__(*q_objs, **query)
 
+    def all(self):
+        """An alias of :meth:`~mongoengine.queryset.QuerySet.__call__`
+        """
+        return self.__call__([], {})
+
     @property
     def _collection(self):
         """Property that returns the collection object. This allows us to
@@ -375,9 +380,9 @@ class QuerySet(object):
             query.update(defaults)
             doc = self._document(**query)
             doc.save()
-            return doc
+            return doc, True
         elif count == 1:
-            return self.first()
+            return self.first(), False
         else:
             message = u'%d items returned, instead of 1' % count
             raise MultipleObjectsReturned(message)
@@ -444,7 +449,7 @@ class QuerySet(object):
         """
         if self._limit == 0:
             return 0
-        return self._cursor.count(with_limit_and_skip=True)
+        return self._cursor.count(with_limit_and_skip=False)
 
     def __len__(self):
         return self.count()

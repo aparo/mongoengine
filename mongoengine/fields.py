@@ -33,7 +33,7 @@ class StringField(BaseField):
         assert isinstance(value, (str, unicode))
 
         if self.max_length is not None and len(value) > self.max_length:
-            raise ValidationError('String value is too long')
+            raise ValidationError('String value is too long: max size allowed %s' % self.max_length)
 
         if self.regex is not None and self.regex.match(value) is None:
             message = 'String value did not match validation regex'
