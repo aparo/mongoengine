@@ -2,7 +2,7 @@ from base import (DocumentMetaclass, TopLevelDocumentMetaclass, BaseDocument,
                   ValidationError, BaseField)
 from queryset import OperationError
 from connection import _get_db
-
+from django.db.models import signals
 import pymongo
 
 
@@ -68,6 +68,12 @@ class Document(BaseDocument):
         :param force_insert: only try to create a new document, don't allow 
             updates of existing documents
         """
+        #propagate pre save signal
+        signals.pre_save.send(sender=self.__class__, instance=self, raw=None)
+        record_exists = False
+        if self.id:
+            record_exists = True
+
         self.validate()
         doc = self.to_mongo()
         # Also check for any dynamic fields that were set and write them to the
@@ -88,6 +94,10 @@ class Document(BaseDocument):
             raise OperationError(message % unicode(err))
         id_field = self._meta['id_field']
         self[id_field] = self._fields[id_field].to_python(object_id)
+        
+        #propagate post save signal
+        signals.post_save.send(sender=self.__class__, instance=self,
+                created=(not record_exists), raw=None)
 
     def delete(self, safe=False):
         """Delete the :class:`~mongoengine.Document` from the database. This
@@ -95,6 +105,8 @@ class Document(BaseDocument):
 
         :param safe: check if the operation succeeded before returning
         """
+        #propagate pre delete
+        signals.pre_delete.send(sender=self.__class__, instance=self)
         id_field = self._meta['id_field']
         object_id = self._fields[id_field].to_mongo(self[id_field])
         try:
@@ -102,6 +114,8 @@ class Document(BaseDocument):
         except pymongo.errors.OperationFailure, err:
             message = u'Could not delete document (%s)' % err.message
             raise OperationError(message)
+        #propagate post delete
+        signals.post_delete.send(sender=self.__class__, instance=self)
 
     def reload(self):
         """Reloads all attributes from the database.

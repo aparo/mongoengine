@@ -7,6 +7,7 @@ from mongoengine import *
 from mongoengine.connection import _get_db
 from django.shortcuts import get_list_or_404, get_object_or_404
 from django.http import Http404
+from django.conf import settings
 
 class ShorcutsTest(unittest.TestCase):
 
@@ -40,5 +41,6 @@ class ShorcutsTest(unittest.TestCase):
         self.Person.drop_collection()
 
 if __name__ == '__main__':
+    print settings.DATABASES['default']
     unittest.main()
 
