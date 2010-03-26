@@ -8,23 +8,25 @@ _connection_settings = {
     'port': 27017,
 }
 
-try:
-    from django.conf import settings
-    if 'mongodb' in settings.DATABASES:
-        _connection_settings['host'] = settings.DATABASES['mongodb']['host']
-        _connection_settings['port'] = settings.DATABASES['mongodb']['port']
-    else:
-        _connection_settings['host'] = settings.DATABASES['default']['host']
-        _connection_settings['port'] = settings.DATABASES['default']['port']
-except ImportError:
-    pass
-
 _connection = None
 
 _db_name = None
 _db_username = None
 _db_password = None
 _db = None
+
+try:
+    from django.conf import settings
+    for dbname in ['mongodb', 'default']:
+        if dbname in settings.DATABASES:
+            _connection_settings['host'] = settings.DATABASES[dbname]['HOST']
+            port = settings.DATABASES[dbname]['PORT']
+            if port:
+                _connection_settings['port'] = int(port)
+            _db_name = settings.DATABASES[dbname]['NAME']
+            break
+except ImportError:
+    pass
 
 
 class ConnectionError(Exception):

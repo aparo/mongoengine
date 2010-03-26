@@ -152,7 +152,7 @@ class Document(BaseDocument):
         else:
             message = u'Field %s already exists' % field_name
             raise OperationError(message)
-
+        
 class MapReduceDocument(object):
     """A document returned from a map/reduce query.
     

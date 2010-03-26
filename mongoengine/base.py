@@ -385,6 +385,12 @@ class BaseDocument(object):
             data['_cls'] = self._class_name
             data['_types'] = self._superclasses.keys() + [self._class_name]
         return data
+
+    def to_json(self):
+        """
+        Return data dictionary in json.
+        """
+        return self.to_mongo()
     
     @classmethod
     def _from_son(cls, son):

@@ -1,17 +1,20 @@
 #Django Facade
+
+from mongoengine import StringField
 from mongoengine import Document as Model
 from mongoengine import StringField
 from mongoengine import DateTimeField
+from mongoengine import DecimalField
 from mongoengine import DateTimeField as DateField
 from mongoengine import ReferenceField as ForeignKey
-from mongoengine import BooleanField, DecimalField
+from mongoengine import BooleanField
 from mongoengine import IntField as IntegerField
-from mongoengine import DecimalField as FloatField
-
+from mongoengine import FloatField
+from mongoengine import EmbeddedDocumentField
+from mongoengine import EmbeddedDocument
 from mongoengine import ListField
+from mongoengine import DictField
 from django.conf import settings
-
-dir(settings)
 
 class CharField(StringField):
     """A unicode string field.

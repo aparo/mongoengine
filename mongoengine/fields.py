@@ -3,7 +3,7 @@ from base import BaseField, ObjectIdField, ValidationError, get_document
 from document import Document, EmbeddedDocument
 from connection import _get_db
 from operator import itemgetter
-
+from django.db.models import Model
 import re
 import pymongo
 import datetime
@@ -137,6 +137,8 @@ class FloatField(BaseField):
     def validate(self, value):
         if isinstance(value, int):
             value = float(value)
+        elif isinstance(value, decimal.Decimal):
+            value = float(value)
         assert isinstance(value, float)
 
         if self.min_value is not None and value < self.min_value:
@@ -204,7 +206,7 @@ class EmbeddedDocumentField(BaseField):
     """
 
     def __init__(self, document, **kwargs):
-        if not issubclass(document, EmbeddedDocument):
+        if not issubclass(document, (EmbeddedDocument, Model)):
             raise ValidationError('Invalid embedded document class provided '
                                   'to an EmbeddedDocumentField')
         self.document = document
@@ -248,6 +250,8 @@ class ListField(BaseField):
             raise ValidationError('Argument to ListField constructor must be '
                                   'a valid field')
         self.field = field
+        if 'default' not in kwargs:
+            kwargs['default'] = []
         super(ListField, self).__init__(**kwargs)
 
     def __get__(self, instance, owner):
