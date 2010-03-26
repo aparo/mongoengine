@@ -3,11 +3,22 @@ from pymongo import Connection
 
 __all__ = ['ConnectionError', 'connect']
 
-
 _connection_settings = {
     'host': 'localhost',
     'port': 27017,
 }
+
+try:
+    from django.conf import settings
+    if 'mongodb' in settings.DATABASES:
+        _connection_settings['host'] = settings.DATABASES['mongodb']['host']
+        _connection_settings['port'] = settings.DATABASES['mongodb']['port']
+    else:
+        _connection_settings['host'] = settings.DATABASES['default']['host']
+        _connection_settings['port'] = settings.DATABASES['default']['port']
+except ImportError:
+    pass
+
 _connection = None
 
 _db_name = None

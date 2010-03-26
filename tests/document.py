@@ -1,3 +1,7 @@
+from os import environ
+if not 'DJANGO_SETTINGS_MODULE' in environ:
+    environ['DJANGO_SETTINGS_MODULE'] = 'settings'
+    
 import unittest
 from datetime import datetime
 import pymongo
@@ -494,6 +498,8 @@ class DocumentTest(unittest.TestCase):
         """
         class EmployeeDetails(EmbeddedDocument):
             position = StringField()
+            def test(self):
+                return 1
 
         class Employee(self.Person):
             salary = IntField()
@@ -511,6 +517,9 @@ class DocumentTest(unittest.TestCase):
         self.assertEqual(employee_obj['age'], 50)
         # Ensure that the 'details' embedded object saved correctly
         self.assertEqual(employee_obj['details']['position'], 'Developer')
+
+        employee_obj = Employee.objects(name='Test Employee')[0]
+        self.assertEqual(employee_obj.details.test(), 1)
 
     def test_save_reference(self):
         """Ensure that a document reference field may be saved in the database.
