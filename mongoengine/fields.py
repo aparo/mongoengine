@@ -3,12 +3,16 @@ from base import BaseField, ObjectIdField, ValidationError, get_document
 from document import Document, EmbeddedDocument
 from connection import _get_db
 from operator import itemgetter
-from django.db.models import Model
 import re
 import pymongo
 import datetime
 import decimal
 
+try:
+    from django.db.models import Model
+except ImportError:
+    #fake to allow not django install
+    Model = EmbeddedDocument
 
 __all__ = ['StringField', 'IntField', 'FloatField', 'BooleanField',
            'DateTimeField', 'EmbeddedDocumentField', 'ListField', 'DictField',

@@ -2,8 +2,12 @@ from base import (DocumentMetaclass, TopLevelDocumentMetaclass, BaseDocument,
                   ValidationError, BaseField)
 from queryset import OperationError
 from connection import _get_db
-from django.db.models import signals
 import pymongo
+
+try:
+    from django.db.models import signals
+except ImportError:
+    signals = None
 
 
 __all__ = ['Document', 'EmbeddedDocument', 'ValidationError', 'OperationError']
@@ -69,7 +73,8 @@ class Document(BaseDocument):
             updates of existing documents
         """
         #propagate pre save signal
-        signals.pre_save.send(sender=self.__class__, instance=self, raw=None)
+        if signals:
+            signals.pre_save.send(sender=self.__class__, instance=self, raw=None)
         record_exists = False
         if self.id:
             record_exists = True
@@ -96,7 +101,8 @@ class Document(BaseDocument):
         self[id_field] = self._fields[id_field].to_python(object_id)
         
         #propagate post save signal
-        signals.post_save.send(sender=self.__class__, instance=self,
+        if signals:
+            signals.post_save.send(sender=self.__class__, instance=self,
                 created=(not record_exists), raw=None)
 
     def delete(self, safe=False):
@@ -106,7 +112,8 @@ class Document(BaseDocument):
         :param safe: check if the operation succeeded before returning
         """
         #propagate pre delete
-        signals.pre_delete.send(sender=self.__class__, instance=self)
+        if signals:
+            signals.pre_delete.send(sender=self.__class__, instance=self)
         id_field = self._meta['id_field']
         object_id = self._fields[id_field].to_mongo(self[id_field])
         try:
@@ -115,7 +122,8 @@ class Document(BaseDocument):
             message = u'Could not delete document (%s)' % err.message
             raise OperationError(message)
         #propagate post delete
-        signals.post_delete.send(sender=self.__class__, instance=self)
+        if signals:
+            signals.post_delete.send(sender=self.__class__, instance=self)
 
     def reload(self):
         """Reloads all attributes from the database.

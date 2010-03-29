@@ -3,8 +3,13 @@ from connection import _get_db
 import pymongo
 import re
 import copy
-from django.core.exceptions import MultipleObjectsReturned, ObjectDoesNotExist
-
+try:
+    from django.core.exceptions import MultipleObjectsReturned, ObjectDoesNotExist
+except ImportError:
+    class ObjectDoesNotExist(Exception):
+        pass
+    class MultipleObjectsReturned(Exception):
+        pass
 
 __all__ = ['queryset_manager', 'Q', 'InvalidQueryError',
            'InvalidCollectionError']

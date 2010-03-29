@@ -1,10 +1,16 @@
 from queryset import QuerySet, QuerySetManager
 
 import pymongo
-from django.core.exceptions import ValidationError
-from django.db.models import signals
-
-
+try:
+    from django.core.exceptions import ValidationError
+except ImportError:
+    class ValidationError(Exception):
+        pass
+try:
+    from django.db.models import signals
+except ImportError:
+    signals = None
+    
 _document_registry = {}
 
 def get_document(name):
@@ -277,7 +283,8 @@ class BaseDocument(object):
 
     def __init__(self, dynamic_fields_list=None, **values):
         #TODO? managing also dynamic_fields_list??
-        signals.pre_init.send(sender=self.__class__, args=[], kwargs=values)
+        if signals:
+            signals.pre_init.send(sender=self.__class__, args=[], kwargs=values)
         self._data = {}
         self._dynamic_fields = {}
         # Assign initial values to instance
@@ -292,7 +299,8 @@ class BaseDocument(object):
                 # Use default value if present
                 value = getattr(self, attr_name, None)
                 setattr(self, attr_name, value)
-        signals.post_init.send(sender=self.__class__, instance=self)
+        if signals:
+            signals.post_init.send(sender=self.__class__, instance=self)
         
     def validate(self):
         """Ensure that all fields' values are valid and that required fields
