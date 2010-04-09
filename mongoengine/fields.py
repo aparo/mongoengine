@@ -320,6 +320,7 @@ class ListField(BaseField):
     def lookup_member(self, member_name):
         return self.field.lookup_member(member_name)
 
+
 class SortedListField(ListField):
     """A ListField that sorts the contents of its list before writing to
     the database in order to ensure that a sorted list is always
