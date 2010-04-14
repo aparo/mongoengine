@@ -21,10 +21,9 @@ __all__ = ['StringField', 'IntField', 'FloatField', 'BooleanField',
            'SetField', 'MapField', 'EnumerationField',
            'EmailField', 'LanguageField',
            'SortedListField',
-           'BinaryField', 'GeoPointField']
+           'BinaryField', 'GeoLocationField']
 
 RECURSIVE_REFERENCE_CONSTANT = 'self'
-
 
 class StringField(BaseField):
     """A unicode string field.
@@ -71,7 +70,7 @@ class StringField(BaseField):
 
 
 class URLField(StringField):
-    """A field that validates input as a URL.
+    """A field that validates input as an URL.
 
     .. versionadded:: 0.3
     """
@@ -102,6 +101,19 @@ class URLField(StringField):
                 message = 'This URL appears to be a broken link: %s' % e
                 raise ValidationError(message)
 
+class EmailField(StringField):
+    """A field that validates input as an E-Mail-Address.
+    """
+
+    EMAIL_REGEX = re.compile(
+        r"(^[-!#$%&'*+/=?^_`{}|~0-9A-Z]+(\.[-!#$%&'*+/=?^_`{}|~0-9A-Z]+)*"  # dot-atom
+        r'|^"([\001-\010\013\014\016-\037!#-\[\]-\177]|\\[\001-011\013\014\016-\177])*"' # quoted-string
+        r')@(?:[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?\.)+[A-Z]{2,6}\.?$', re.IGNORECASE # domain
+    )
+    
+    def validate(self, value):
+        if not EmailField.EMAIL_REGEX.match(value):
+            raise ValidationError('Invalid Mail-address: %s' % value)
 
 class IntField(BaseField):
     """An integer field.
@@ -360,6 +372,23 @@ class DictField(BaseField):
     def lookup_member(self, member_name):
         return BaseField(db_field=member_name)
 
+class GeoLocationField(DictField):
+    """Supports geobased fields"""
+    
+    def validate(self, value):
+        """Make sure that a geo-value is of type (x, y)
+        """
+        if not isinstance(value, tuple) and not isinstance(value, list):
+            raise ValidationError('GeoLocationField can only hold tuples or lists of (x, y)')
+        
+        if len(value) <> 2:
+            raise ValidationError('GeoLocationField must have exactly two elements (x, y)')
+    
+    def to_mongo(self, value):
+        return {'x': value[0], 'y': value[1]}
+    
+    def to_python(self, value):
+        return value.keys()
 
 class SetField(BaseField):
 
@@ -645,17 +674,3 @@ class BinaryField(BaseField):
 
         if self.max_bytes is not None and len(value) > self.max_bytes:
             raise ValidationError('Binary value is too long')
-
-
-class GeoPointField(BaseField):
-    """A list storing a latitude and longitude.
-    """
-
-    def validate(self, value):
-        assert isinstance(value, (list, tuple))
-        
-        if not len(value) == 2:
-            raise ValidationError('Value must be a two-dimensional point.')
-        if not isinstance(value[0], (float, int)) and \
-           not isinstance(value[1], (float, int)):
-            raise ValidationError('Both values in point must be float or int.')
