@@ -34,18 +34,21 @@ try:
         
         def transform_outgoing(self, son, collection):
             if isinstance(son, dict):
-                for (key, value) in son.items():
-                    if isinstance(value, dict):
-                        if "_type" in value and value["_type"] == "django":
-                            son[key] = decode_django(value)
-                    elif hasattr(value, "__iter__"): # Make sure we recurse into sub-docs
-                        son[key] = [self.transform_outgoing(item, collection) for item in value]
-                    else: # Again, make sure to recurse into sub-docs
-                        son[key] = self.transform_outgoing(value, collection)
+                if "_type" in son and son["_type"] == u"django":
+                    son = decode_django(son)
+                else:
+                    for (key, value) in son.items():
+                        if isinstance(value, dict):
+                            if "_type" in value and value["_type"] == u"django":
+                                son[key] = decode_django(value)
+                            else:
+                                son[key] = self.transform_outgoing(value, collection)
+                        elif hasattr(value, "__iter__"): # Make sure we recurse into sub-docs
+                            son[key] = [self.transform_outgoing(item, collection) for item in value]
+                        else: # Again, make sure to recurse into sub-docs
+                            son[key] = self.transform_outgoing(value, collection)
             elif hasattr(son, "__iter__"): # Make sure we recurse into sub-docs
                 son = [self.transform_outgoing(item, collection) for item in son]
-            elif isinstance(son, Model):
-                son = decode_django(value)
             return son
 except ImportError:
     #no django, disable SON

@@ -27,6 +27,7 @@ class OperationError(Exception):
 class InvalidCollectionError(Exception):
     pass
 
+DoesNotExist = ObjectDoesNotExist
 RE_TYPE = type(re.compile(''))
 
 
