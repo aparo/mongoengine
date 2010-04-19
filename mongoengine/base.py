@@ -27,7 +27,7 @@ class BaseField(object):
     _index_with_types = True
     
     def __init__(self, db_field=None, name=None, required=False, default=None, 
-                 unique=False, unique_with=None, primary_key=False,
+                 unique=False, unique_with=None, primary_key=False, validation=None,
                  choices=None):
         self.db_field = (db_field or name) if not primary_key else '_id'
         if name:
@@ -40,6 +40,7 @@ class BaseField(object):
         self.unique = bool(unique or unique_with)
         self.unique_with = unique_with
         self.primary_key = primary_key
+        self.validation = validation
         self.choices = choices
 
     def __get__(self, instance, owner):
@@ -85,11 +86,20 @@ class BaseField(object):
         pass
 
     def _validate(self, value):
+        # check choices
         if self.choices is not None:
             if value not in self.choices:
                 raise ValidationError("Value must be one of %s."%unicode(self.choices))
+        
+        # check validation argument
+        if self.validation is not None:
+            if callable(self.validation):
+                if not self.validation(value):
+                    raise ValidationError('Value does not match custom validation method.')
+            else:
+                raise ValueError('validation argument must be a callable.')
+    
         self.validate(value)
-
 
 class ObjectIdField(BaseField):
     """An field wrapper around MongoDB's ObjectIds.
@@ -102,10 +112,10 @@ class ObjectIdField(BaseField):
     def to_mongo(self, value):
         if not isinstance(value, pymongo.objectid.ObjectId):
             try:
-                return pymongo.objectid.ObjectId(str(value))
+                return pymongo.objectid.ObjectId(unicode(value))
             except Exception, e:
                 #e.message attribute has been deprecated since Python 2.6
-                raise ValidationError(str(e))
+                raise ValidationError(unicode(e))
         return value
 
     def prepare_query_value(self, op, value):
@@ -113,7 +123,7 @@ class ObjectIdField(BaseField):
 
     def validate(self, value):
         try:
-            pymongo.objectid.ObjectId(str(value))
+            pymongo.objectid.ObjectId(unicode(value))
         except:
             raise ValidationError('Invalid Object ID')
 
@@ -183,19 +193,20 @@ class DocumentMetaclass(type):
         for field in new_class._fields.values():
             field.owner_document = new_class
 
-        module = attrs.pop('__module__')
+        module = attrs.get('__module__')
         
-        new_class.add_to_class('DoesNotExist', subclass_exception('DoesNotExist',
-                            tuple(x.DoesNotExist
-                                  for k,x in superclasses.items())
-                            or (DoesNotExist,), module))
+        base_excs = tuple(base.DoesNotExist for base in bases 
+                          if hasattr(base, 'DoesNotExist')) or (DoesNotExist,)
+        exc = subclass_exception('DoesNotExist', base_excs, module)
+        new_class.add_to_class('DoesNotExist', exc)
         
-        new_class.add_to_class('MultipleObjectsReturned', subclass_exception('MultipleObjectsReturned',
-                            tuple(x.MultipleObjectsReturned
-                                  for k,x in superclasses.items())
-                            or (MultipleObjectsReturned,), module))
-        return new_class
+        base_excs = tuple(base.MultipleObjectsReturned for base in bases 
+                          if hasattr(base, 'MultipleObjectsReturned'))
+        base_excs = base_excs or (MultipleObjectsReturned,)
+        exc = subclass_exception('MultipleObjectsReturned', base_excs, module)
+        new_class.add_to_class('MultipleObjectsReturned', exc)
     
+        return new_class
         
     def add_to_class(self, name, value):
         setattr(self, name, value)

@@ -21,7 +21,7 @@ __all__ = ['StringField', 'IntField', 'FloatField', 'BooleanField',
            'SetField', 'MapField', 'EnumerationField',
            'EmailField', 'LanguageField',
            'GeoLocationField',
-           'BinaryField', 'SortedListField']
+           'BinaryField', 'SortedListField', 'EmailField', 'GeoLocationField']
 
 RECURSIVE_REFERENCE_CONSTANT = 'self'
 
@@ -29,9 +29,10 @@ class StringField(BaseField):
     """A unicode string field.
     """
 
-    def __init__(self, regex=None, max_length=None, **kwargs):
+    def __init__(self, regex=None, max_length=None, min_length=None, **kwargs):
         self.regex = re.compile(regex) if regex else None
         self.max_length = max_length
+        self.min_length = min_length
         super(StringField, self).__init__(**kwargs)
 
     def to_python(self, value):
@@ -42,6 +43,9 @@ class StringField(BaseField):
 
         if self.max_length is not None and len(value) > self.max_length:
             raise ValidationError('String value is too long: max size allowed %s' % self.max_length)
+        
+        if self.min_length is not None and len(value) < self.min_length:
+            raise ValidationError('String value is too short')
 
         if self.regex is not None and self.regex.match(value) is None:
             message = 'String value did not match validation regex'
@@ -138,7 +142,6 @@ class IntField(BaseField):
         if self.max_value is not None and value > self.max_value:
             raise ValidationError('Integer value is too large')
 
-
 class FloatField(BaseField):
     """An floating point number field.
     """
@@ -162,7 +165,6 @@ class FloatField(BaseField):
 
         if self.max_value is not None and value > self.max_value:
             raise ValidationError('Float value is too large')
-
 
 class DecimalField(BaseField):
     """A fixed-point decimal number field.
@@ -197,7 +199,6 @@ class DecimalField(BaseField):
         if self.max_value is not None and value > self.max_value:
             raise ValidationError('Decimal value is too large')
 
-
 class BooleanField(BaseField):
     """A boolean field type.
 
@@ -210,14 +211,12 @@ class BooleanField(BaseField):
     def validate(self, value):
         assert isinstance(value, bool)
 
-
 class DateTimeField(BaseField):
     """A datetime field.
     """
 
     def validate(self, value):
         assert isinstance(value, datetime.datetime)
-
 
 class EmbeddedDocumentField(BaseField):
     """An embedded document field. Only valid values are subclasses of
@@ -687,6 +686,7 @@ class BinaryField(BaseField):
         return pymongo.binary.Binary(value)
 
     def to_python(self, value):
+        # Returns str not unicode as this is binary data
         return str(value)
 
     def validate(self, value):

@@ -125,7 +125,7 @@ class Q(object):
 
         # Comparing two ObjectIds in Javascript doesn't work..
         if isinstance(value, pymongo.objectid.ObjectId):
-            value = str(value)
+            value = unicode(value)
 
         # Perform the substitution
         operation_js = op_js % {
@@ -540,13 +540,13 @@ class QuerySet(object):
         map_f_scope = {}
         if isinstance(map_f, pymongo.code.Code):
             map_f_scope = map_f.scope
-            map_f = str(map_f)
+            map_f = unicode(map_f)
         map_f = pymongo.code.Code(self._sub_js_fields(map_f), map_f_scope)
 
         reduce_f_scope = {}
         if isinstance(reduce_f, pymongo.code.Code):
             reduce_f_scope = reduce_f.scope
-            reduce_f = str(reduce_f)
+            reduce_f = unicode(reduce_f)
         reduce_f_code = self._sub_js_fields(reduce_f)
         reduce_f = pymongo.code.Code(reduce_f_code, reduce_f_scope)
 
@@ -556,7 +556,7 @@ class QuerySet(object):
             finalize_f_scope = {}
             if isinstance(finalize_f, pymongo.code.Code):
                 finalize_f_scope = finalize_f.scope
-                finalize_f = str(finalize_f)
+                finalize_f = unicode(finalize_f)
             finalize_f_code = self._sub_js_fields(finalize_f)
             finalize_f = pymongo.code.Code(finalize_f_code, finalize_f_scope)
             mr_args['finalize'] = finalize_f
@@ -779,7 +779,7 @@ class QuerySet(object):
                 # Older versions of PyMongo don't support 'multi'
                 self._collection.update(self._query, update, safe=safe_update)
         except pymongo.errors.OperationFailure, e:
-            raise OperationError('Update failed [%s]' % str(e))
+            raise OperationError(u'Update failed [%s]' % unicode(e))
 
     def __iter__(self):
         return self
@@ -795,9 +795,9 @@ class QuerySet(object):
             field_name = match.group(1).split('.')
             fields = QuerySet._lookup_field(self._document, field_name)
             # Substitute the correct name for the field into the javascript
-            return '["%s"]' % fields[-1].db_field
+            return u'["%s"]' % fields[-1].db_field
 
-        return re.sub('\[\s*~([A-z_][A-z_0-9.]+?)\s*\]', field_sub, code)
+        return re.sub(u'\[\s*~([A-z_][A-z_0-9.]+?)\s*\]', field_sub, code)
 
     def exec_js(self, code, *fields, **options):
         """Execute a Javascript function on the server. A list of fields may be
@@ -961,7 +961,7 @@ class QuerySetManager(object):
                     opts = {'capped': True, 'size': max_size}
                     if max_documents:
                         opts['max'] = max_documents
-                    self._collection = db.create_collection(collection, opts)
+                    self._collection = db.create_collection(collection, **opts)
             else:
                 self._collection = db[collection]
 
