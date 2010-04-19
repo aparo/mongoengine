@@ -10,6 +10,8 @@ except ImportError:
         pass
     class MultipleObjectsReturned(Exception):
         pass
+    
+DoesNotExist = ObjectDoesNotExist
 
 __all__ = ['queryset_manager', 'Q', 'InvalidQueryError',
            'InvalidCollectionError']
